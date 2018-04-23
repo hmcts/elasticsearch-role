@@ -1,0 +1,116 @@
+---
+# Adds SearchGuard to Elasticsearch.
+# https://github.com/floragunncom/search-guard
+
+# We need APR installed so we can use the netty-tcnative OpenSSL support for improved performance
+- name: Install APR
+  yum:
+    name: apr
+    state: installed
+
+- name: Check for existing installation
+  command: "/usr/share/elasticsearch/bin/elasticsearch-plugin list"
+  register: elasticsearch_installed_plugins
+  changed_when: false
+
+- name: Install SearchGuard
+  become: yes
+  command: "/usr/share/elasticsearch/bin/elasticsearch-plugin install --batch {{ elasticsearch_searchguard_pkg_url }}"
+  when: elasticsearch_installed_plugins.stdout.find('search-guard') == -1
+
+# This library found here: http://repo1.maven.org/maven2/io/netty/netty-tcnative/2.0.7.Final/
+- name: Download netty-tcnative OpenSSL support
+  get_url:
+    url: "{{ elasticsearch_searchguard_tcnative_url }}"
+    dest: "/usr/share/elasticsearch/plugins/search-guard-6/"
+
+# Checks if the default vendor provided admin hash exist in the configuration file so we can change it
+- name: Check for default admin user credentials
+  command: grep '$2a$12$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG' /usr/share/elasticsearch/plugins/search-guard-6/sgconfig/sg_internal_users.yml
+  register: default_credentials
+  failed_when: default_credentials.rc >= 2
+  changed_when: default_credentials.rc == 0
+
+# Configure users and roles
+# NB that API based user management requires a SearchGuard enterprise license
+# Note that we could try the password_hash() jinja2 filter in the template but this seems to fail silently if the
+# python-passlib module isn't installed on the build agent
+- block:
+  - name: Register hashed elasticsearch user password
+    shell: JAVA_HOME=/usr /bin/bash /usr/share/elasticsearch/plugins/search-guard-6/tools/hash.sh -p {{ elk_sg_elastic_user_password }}
+    register: sg_elastic_user_password
+
+  - name: Register hashed kibana user password
+    shell: JAVA_HOME=/usr /bin/bash /usr/share/elasticsearch/plugins/search-guard-6/tools/hash.sh -p {{ elk_sg_kibana_user_password }}
+    register: sg_kibana_user_password
+
+  - name: Register hashed logstash user password
+    shell: JAVA_HOME=/usr /bin/bash /usr/share/elasticsearch/plugins/search-guard-6/tools/hash.sh -p {{ elk_sg_logstash_user_password }}
+    register: sg_logstash_user_password
+
+  # Configure this here should mean that on very first run the Searchguard internal configuration and user database
+  # should be populated with these settings.  Afterwards updates will need to be managed with sgadmin.sh
+  - name: Copy SearchGuard user configuration
+    template:
+      src: sg_internal_users.yml.j2
+      dest: /usr/share/elasticsearch/plugins/search-guard-6/sgconfig/sg_internal_users.yml
+      owner: root
+      group: root
+      mode: 0644
+
+  when: default_credentials is changed
+
+- name: Copy SearchGuard roles configuration for Logstash
+  copy:
+    content: "{{ elk_sg_roles_yml }}"
+    dest: /usr/share/elasticsearch/plugins/search-guard-6/sgconfig/sg_roles.yml
+    owner: root
+    group: root
+    mode: 0644
+  when: elk_sg_roles_yml is defined
+
+- name: Copy SearchGuard role mapping
+  copy:
+    content: "{{ elk_sg_roles_mapping_yml }}"
+    dest: /usr/share/elasticsearch/plugins/search-guard-6/sgconfig/sg_roles_mapping.yml
+    owner: root
+    group: root
+    mode: 0644
+  when: elk_sg_roles_mapping_yml is defined
+
+- block:
+  - name: Copy transport key
+    copy:
+      content: "{{ elk_sg_transport_key }}"
+      dest: "/etc/elasticsearch/{{ elk_sg_transport_key_location }}"
+      owner: root
+      group: elasticsearch
+      mode: 0660
+  - name: Copy transport certificate
+    copy:
+      content: "{{ elk_sg_transport_cert }}"
+      dest: "/etc/elasticsearch/{{ elk_sg_transport_cert_location }}"
+      owner: root
+      group: elasticsearch
+      mode: 0660
+  - name: Copy CA certificate
+    copy:
+      content: "{{ elk_sg_ca_cert }}"
+      dest: "/etc/elasticsearch/{{ elk_sg_ca_cert_location }}"
+      owner: root
+      group: elasticsearch
+      mode: 0660
+  - name: Copy HTTP key
+    copy:
+      content: "{{ elk_sg_http_key }}"
+      dest: "/etc/elasticsearch/{{ elk_sg_http_key_location }}"
+      owner: root
+      group: elasticsearch
+      mode: 0660
+  - name: Copy HTTP certificate
+    copy:
+      content: "{{ elk_sg_http_cert }}"
+      dest: "/etc/elasticsearch/{{ elk_sg_http_cert_location }}"
+      owner: root
+      group: elasticsearch
+      mode: 0660

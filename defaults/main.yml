@@ -1,0 +1,71 @@
+---
+# System level defaults
+elasticsearch_sysctl_vm_max_map_count: 262144
+elasticsearch_sysctl_vm_swappiness: 1
+
+# Global Elasticstack version.  All plugins and components should be the same version
+# Override this to match the version used on your infrastructure
+elasticstack_version: 6.2.3
+
+## X-Pack settings
+elasticsearch_xpack_plugin_pkg_url: "https://artifacts.elastic.co/downloads/packs/x-pack/x-pack-{{ elasticstack_version }}.zip"
+
+## Elasticsearch configuration file settings
+# This is the default cluster_name setting, override for your infrastructure
+elasticsearch_cluster_name: elasticsearch
+elasticsearch_node_name: ${HOSTNAME}
+elasticsearch_discovery_zen_ping_unicast_hosts:
+  - localhost
+elasticsearch_discovery_zen_minimum_master_nodes: 1
+elasticsearch_gateway_recover_after_nodes: 1
+elasticsearch_network_host: _local_
+elasticsearch_http_port: 9200-9300
+elasticsearch_java_opts:
+  - Xms500m
+  - Xmx500m
+  - Dlog4j2.disable.jmx=true
+elasticsearch_coordinating_node: false
+
+## Snapshot/backup configuration settings
+elasticsearch_backup_plugin_pkg_url: "https://artifacts.elastic.co/downloads/elasticsearch-plugins/repository-azure/repository-azure-{{ elasticstack_version }}.zip"
+elasticsearch_backup_api_url: "https://127.0.0.1:9200/_snapshot/elk_backup"
+
+# Azure Credentials
+elk_backup_storage_azure_account: "azure_username"
+elk_backup_storage_azure_key: "azure_password"
+
+# Credentials for user with suitable cluster privileges to perform snapshots
+elasticsearch_backup_username: "backup_username"
+elasticsearch_backup_password: "backup_password"
+
+## Searchguard related settings
+elasticsearch_searchguard_pkg_url: "https://oss.sonatype.org/content/repositories/releases/com/floragunn/search-guard-6/{{ elasticstack_version }}-22.0/search-guard-6-{{ elasticstack_version }}-22.0.zip"
+elasticsearch_searchguard_tcnative_url: "http://repo1.maven.org/maven2/io/netty/netty-tcnative/2.0.7.Final/netty-tcnative-2.0.7.Final-linux-x86_64-fedora.jar"
+
+# User credentials - change/override these defaults
+elk_sg_elastic_user: "elastic_user"
+elk_sg_elastic_user_password: "elastic_password"
+elk_sg_kibana_user: "kibana_user"
+elk_sg_kibana_user_password: "kibana_password"
+elk_sg_logstash_user: "logstash_user"
+elk_sg_logstash_user_password: "logstash_password"
+
+# Searchguard Roles files - use this to override the defaults config files
+#elk_sg_roles_yml: ""
+#elk_sg_roles_mapping_yml: ""
+
+# Certificate paths are relative to /etc/elasticsearch (assuming default config path)
+elk_sg_transport_key: ""
+elk_sg_transport_key_location: "certs/transport.key.pkcs8"
+
+elk_sg_transport_cert: ""
+elk_sg_transport_cert_location: "certs/transport.pem"
+
+elk_sg_ca_cert: ""
+elk_sg_ca_cert_location: "certs/ca.pem"
+
+elk_sg_http_key: ""
+elk_sg_http_key_location: "certs/http.key.pkcs8"
+
+elk_sg_http_cert: ""
+elk_sg_http_cert_location: "certs/http.pem"

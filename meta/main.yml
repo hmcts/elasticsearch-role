@@ -1,0 +1,13 @@
+galaxy_info:
+  author: HMCTS Reform
+  description: Install Elasticsearch
+  company: HMCTS Reform
+  license: MIT
+
+  min_ansible_version: 2.4
+
+  galaxy_tags: []
+
+dependencies:
+  - { role: devops.java, java.version: 1.8.0 }
+  - { role: devops.repos }

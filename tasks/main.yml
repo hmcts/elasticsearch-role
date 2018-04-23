@@ -1,0 +1,117 @@
+---
+- name: install elasticsearch
+  become: yes
+  yum:
+    name: elasticsearch-{{ elasticstack_version }}-1.noarch
+    state: installed
+
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/vm-max-map-count.html
+- name: set sysctl vm.max_map_count
+  become: yes
+  sysctl:
+    name: vm.max_map_count
+    value: "{{ elasticsearch_sysctl_vm_max_map_count }}"
+
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/setup-configuration-memory.html
+- name: set sysctl vm.swapiness
+  become: yes
+  sysctl:
+    name: vm.swappiness
+    value: "{{ elasticsearch_sysctl_vm_swappiness }}"
+
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/heap-size.html
+- name: set java options
+  become: yes
+  template:
+    src: jvm.options.j2
+    dest: /etc/elasticsearch/jvm.options
+    owner: root
+    group: elasticsearch
+    mode: 0660
+
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/max-number-of-threads.html
+- name: set ulimits for elasticsearch
+  become: yes
+  lineinfile:
+    dest: /etc/security/limits.conf
+    insertbefore: '^# End of file'
+    line: 'elasticsearch - memlock unlimited'
+
+- name: set elasticsearch memlock limit
+  become: yes
+  pam_limits:
+    domain: elasticsearch
+    limit_type: "-"
+    limit_item: memlock
+    value: unlimited
+
+- name: set elasticsearch nofile limit
+  become: yes
+  pam_limits:
+    domain: elasticsearch
+    limit_type: "-"
+    limit_item: nofile
+    value: 65536
+
+- name: set elasticsearch nproc limit
+  become: yes
+  pam_limits:
+    domain: elasticsearch
+    limit_type: "-"
+    limit_item: nproc
+    value: 2048
+
+- name: set elasticsearch configuration
+  become: yes
+  template:
+    src: elasticsearch.yml.j2
+    dest: /etc/elasticsearch/elasticsearch.yml
+    owner: root
+    group: elasticsearch
+    mode: 0660
+  no_log: true
+
+- name: Ensure certs directory exists
+  file:
+    dest: "/etc/elasticsearch/certs"
+    state: directory
+    owner: root
+    group: elasticsearch
+    mode: 0770
+
+- name: Install X-Pack
+  include_tasks: xpack.yml
+
+- name: Install SearchGuard
+  include_tasks: searchguard.yml
+
+- name: Install Azure Snapshot support
+  include_tasks: backup-repository.yml
+
+- name: start/enable elasticsearch on boot
+  become: yes
+  service:
+    name: elasticsearch
+    state: started
+    enabled: yes
+
+- name: Waiting for Elasticsearch to start
+  wait_for:
+    port: 9200
+    delay: 10
+
+# This only works with valid credentials so it's skipped when testing in Docker where we use test credentials
+- name: Create backup repository
+  uri:
+    url: "{{ elasticsearch_backup_api_url }}"
+    user: "{{ elasticsearch_backup_username }}"
+    password: "{{ elasticsearch_backup_password }}"
+    method: PUT
+    body: '{ "type": "azure", "settings": { "compress": true, "client": "default", "container": "elkbackups" }}'
+    body_format: "json"
+    validate_certs: no
+    headers:
+      Content-Type: "application/json"
+  retries: 5
+  delay: 30
+  when: ansible_virtualization_type != "docker"

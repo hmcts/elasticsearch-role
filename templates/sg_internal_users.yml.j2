@@ -1,0 +1,15 @@
+# This is the internal user database
+# The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
+
+{{ elk_sg_elastic_user }}:
+  hash: {{ sg_elastic_user_password.stdout_lines[0] }}
+  roles:
+    - admin
+
+{{ elk_sg_logstash_user }}:
+  hash: {{ sg_logstash_user_password.stdout_lines[0] }}
+  roles:
+    - logstash
+
+{{ elk_sg_kibana_user }}:
+  hash: {{ sg_kibana_user_password.stdout_lines[0] }}

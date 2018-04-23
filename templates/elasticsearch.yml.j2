@@ -1,0 +1,44 @@
+cluster.name: {{ elasticsearch_cluster_name }}
+node.name: {{ elasticsearch_node_name }}
+{% if elasticsearch_coordinating_node %}
+# You want this node to be neither master nor data node nor ingest node, but
+# to act as a "search load balancer" (fetching data from nodes,
+# aggregating results, etc.)
+#
+node.master: false
+node.data: false
+node.ingest: false
+{% endif %}
+network.host: {{ elasticsearch_network_host }}
+network.bind_host: 0.0.0.0
+http.port: {{ elasticsearch_http_port }}
+discovery.zen.ping.unicast.hosts: {{ elasticsearch_discovery_zen_ping_unicast_hosts|to_json }}
+discovery.zen.minimum_master_nodes: {{ elasticsearch_discovery_zen_minimum_master_nodes }}
+gateway.recover_after_nodes: {{ elasticsearch_gateway_recover_after_nodes }}
+
+path.logs: /var/log/elasticsearch
+path.data: /var/lib/elasticsearch
+
+# Disable unused X-Pack features
+xpack.ml.enabled: false
+xpack.security.enabled: false
+xpack.watcher.enabled: false
+
+# SearchGuard configuration
+# SSL paths are relative to /etc/elasticsearch
+searchguard:
+  enterprise_modules_enabled: false
+  allow_default_init_sgindex: true
+
+  ssl:
+    transport:
+      pemkey_filepath: {{ elk_sg_transport_key_location }}
+      pemcert_filepath: {{ elk_sg_transport_cert_location }}
+      pemtrustedcas_filepath: {{ elk_sg_ca_cert_location }}
+      enforce_hostname_verification: false
+      resolve_hostname: false
+    http:
+      enabled: true
+      pemkey_filepath: {{ elk_sg_http_key_location }}
+      pemcert_filepath: {{ elk_sg_http_cert_location }}
+      pemtrustedcas_filepath: {{ elk_sg_ca_cert_location }}

@@ -1,0 +1,18 @@
+---
+- name: Check for installed elasticsearch plugins - xpack
+  command: "/usr/share/elasticsearch/bin/elasticsearch-plugin list"
+  register: elasticsearch_installed_plugins
+  changed_when: false
+
+- name: install X-Pack
+  become: yes
+  command: "/usr/share/elasticsearch/bin/elasticsearch-plugin install --batch {{ elasticsearch_xpack_plugin_pkg_url }}"
+  when: elasticsearch_installed_plugins.stdout.find('x-pack') == -1
+
+- name: Amend x-pack configuration for compression on log rotation.
+  copy:
+    dest: /etc/elasticsearch/x-pack/log4j2.properties
+    src: files/x-pack_log4j2.properties
+    owner: root
+    group: elasticsearch
+    mode: 0660

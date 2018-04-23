@@ -1,0 +1,25 @@
+---
+dependency:
+  name: galaxy
+  requirements_file: requirements.yml
+
+driver:
+  name: docker
+
+docker:
+  containers:
+    - name: elasticsearch-role-${BRANCH_NAME}-${BUILD_NUMBER}
+      image: centos/systemd
+      image_version: latest
+# privileged needed to allow applying the sysctl settings
+      privileged: yes
+      cap_add:
+        - SYS_ADMIN
+      ansible_groups:
+        - elasticsearch
+
+ansible:
+  playbook: tests/playbook.yml
+
+verifier:
+  name: testinfra
