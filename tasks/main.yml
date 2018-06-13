@@ -114,4 +114,4 @@
       Content-Type: "application/json"
   retries: 5
   delay: 30
-  when: ansible_virtualization_type != "docker"
+  when: ansible_virtualization_type != "docker" or ansible_virtualization_type != "virtualbox"
