@@ -84,6 +84,7 @@
 
 - name: Install SearchGuard
   include_tasks: searchguard.yml
+  when: ansible_virtualization_type != "virtualbox"
 
 - name: Install Azure Snapshot support
   include_tasks: backup-repository.yml
